@@ -2,7 +2,7 @@ from PIL import Image, ImageTk
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-
+import math
 import tkinter as tk
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -42,9 +42,11 @@ class Histogram():
     def update(self, image):
         hist = image.histogram()
 
+        i = 0
         plt.ylim([0, max(hist)])
-        for i, h in enumerate(hist):
+        for h in hist:
             self.rects[i].set_height(h)
+            i += 1
 
         self.canvas.draw()
 
@@ -58,78 +60,41 @@ class Callback():
         self.hist = hist
 
     def __call__(self, value):
-        data = self.op(self.im_orig.getdata(), float(value))
+        self.im_edit = self.im_orig.point(lambda pixel: self.op(pixel, float(value)), self.im_orig.mode)
 
-        self.im_edit.putdata(data)
         self.widget.update(self.im_edit)
         self.hist.update(self.im_edit)
 
-    def op(self, pixels, param=None):
-        return pixels
+    def op(self, pixel, param=None):
+        return pixel
 
 
 class Negative(Callback):
-
-    def op(self, pixels, param=None):
-        newdata = []
-        for pixel in pixels:
-            newdata.append(255-pixel)
-        return newdata
+    def op(self, pixel, param=None):
+        return 255-pixel
 
 
 class Threshold(Callback):
-
-    def op(self, pixels, threshold):
-        newdata = []
-        for pixel in pixels:
-            val = 0 if pixel < threshold else 255
-            newdata.append(val)
-        return newdata
+    def op(self, pixel, threshold):
+        return 0 if pixel < threshold else 255
 
 
 class Contrast(Callback):
-
-    def op(self, pixels, c):
-        newdata = []
-        for pixel in pixels:
-            val = ((pixel/256.0)*c)*256
-            newdata.append(val)
-        return newdata
+    def op(self, pixel, c):
+        return int(((pixel/256.0)*c)*256)
 
 
 class Gamma(Callback):
-
-    def op(self, pixels, g):
-        table = range(0,256)
-        newdata = [0]*len(pixels)
-        i = 0
-        for pixel in pixels:
-            val = ((pixel/256.0)**g)*256
-            newdata[i] = val
-            i += 1
-        return newdata
-
-    def op2(self, pixels, g):
-        newdata = [0]*len(pixels)
-        i = 0
-        for pixel in pixels:
-            val = ((pixel/256.0)**g)*256
-            newdata[i] = val
-            i += 1
-        return newdata
-
-
-def windowClose():
-    print("close")
-    window.destroy()
+    def op(self, pixel, g):
+        return int(((pixel/256.0)**g)*256)
 
 path = "lena.jpg"
 
 im_orig = Image.open(path)
-im_orig.load()
 data = list(im_orig.getdata())
 
 im_edit = Image.new(im_orig.mode, im_orig.size)
+im_edit.putdata(data)
 
 window = tk.Tk()
 
@@ -178,5 +143,8 @@ button.pack(side=tk.RIGHT)
 
 #
 
-window.protocol("WM_DELETE_WINDOW", windowClose)
+def windowClose():
+    window.destroy()
+
+# window.protocol("WM_DELETE_WINDOW", windowClose)
 window.mainloop()
