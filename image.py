@@ -111,6 +111,7 @@ cb["Contrast"] = Contrast(im_orig, im_edit, widget_edit, hist_edit)
 cb["Gamma"] = Gamma(im_orig, im_edit, widget_edit, hist_edit)
 
 s = tk.Scale(window, from_=0, to=10, resolution=0.01, orient=tk.HORIZONTAL, length=400, command=cb["Gamma"])
+s.set(1)
 s.pack()
 
 #
@@ -126,16 +127,21 @@ w.pack(side=tk.LEFT)
 
 def ok():
     value = variable.get()
-    call = cb[value]
-    s.configure(command=call)
-    call(0)
 
     if value == "Threshold":
         s.configure(from_=0, to=255)
+        s.set(128)
     elif value == "Negative":
+        s.configure(from_=0, to=0)
+        s.set(0)
         pass
     else:
         s.configure(from_=0, to=10)
+        s.set(1)
+
+    call = cb[value]
+    s.configure(command=call)
+    call(0)
 
 
 button = tk.Button(frame, text="OK", command=ok)
