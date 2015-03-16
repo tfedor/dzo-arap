@@ -88,7 +88,7 @@ class Gamma(Callback):
     def op(self, pixel, g):
         return int(((pixel/256.0)**g)*256)
 
-path = "lena.jpg"
+path = "assets/lena.jpg"
 
 im_orig = Image.open(path)
 data = list(im_orig.getdata())
