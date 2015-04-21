@@ -1,50 +1,5 @@
-from PIL import Image, ImageTk, ImageDraw, ImageColor
 import math
 import tkinter as tk
-import time
-
-SEARCH_SIZE = 48
-SEARCH_OFFSET = SEARCH_SIZE/2
-
-
-class ImageWidget():
-
-    def __init__(self, parent):
-
-        self.image = None
-        self.data = []
-
-        self.image = tk.Canvas(self.label, width=500, height=500)
-        #self.label.image = canvas
-        self.label.pack()
-
-    def bind(self, event, callback):
-        self.label.bind(event, callback)
-
-    def update(self, image):
-        self.image = image
-        self.data = list(self.image.getdata())
-
-    def redraw(self):
-        photo = ImageTk.PhotoImage(self.image)
-        self.label.configure(image=photo)
-        self.label.image = photo
-
-    def clear_overlay(self):
-        self.image.putdata(self.data)
-
-    def px(self, x, y):
-        return self.data[y * self.image.size[0] + x]
-
-    def draw_box(self, x, y, offset, color):
-
-        draw = ImageDraw.Draw(self.image)
-        draw.rectangle([(x-offset, y-offset),
-                        (x+offset, y+offset)], outline=color)
-
-    def draw_line(self, start, end, color=(255, 0, 255), width=1):
-        draw = ImageDraw.Draw(self.image)
-        draw.line([start, end], fill=color, width=width)
 
 
 class Point():
