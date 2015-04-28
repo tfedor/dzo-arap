@@ -5,7 +5,6 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import numpy as np
 import time
-import asyncio
 
 
 class Line:
@@ -141,8 +140,8 @@ class Point():
         x /= len(self.linked)
         y /= len(self.linked)
 
-        self.x = x
-        self.y = y
+        self.x = int(round(x))
+        self.y = int(round(y))
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
@@ -155,7 +154,7 @@ class Box():
 
     def __init__(self, b_tl, b_tr, b_br, b_bl):
         # initial position of a box, used for modifying image
-        self.__initial = [b_tl.copy(), b_tr.copy(), b_br.copy(), b_bl.copy()]
+        self._initial = [b_tl.copy(), b_tr.copy(), b_br.copy(), b_bl.copy()]
 
         self.boundary = [b_tl, b_tr, b_br, b_bl]
 
@@ -167,33 +166,45 @@ class Box():
         self.boundary[2].link(self._rigid[2])
         self.boundary[3].link(self._rigid[3])
 
+        self._rasterized = []
+        self.rasterize()
+
+        self.H = None
+
+        H_A = []
+        H_B = [None]*8
+        for s in self._initial:
+            H_A.append([s.x, s.y, 1, 0, 0, 0, None, None])
+            H_A.append([0, 0, 0, s.x, s.y, 1, None, None])
+
+        self.H_A = np.array(H_A)
+        self.H_B = np.array(H_B)
+
+    def rasterize(self):
         lines = Line()
-        lines.addp(b_tl, b_tr)
-        lines.addp(b_tr, b_br)
-        lines.addp(b_br, b_bl)
-        lines.addp(b_bl, b_tl)
-        self.__rasterized = lines.stack
+        lines.addp(self.boundary[0], self.boundary[1])
+        lines.addp(self.boundary[1], self.boundary[2])
+        lines.addp(self.boundary[2], self.boundary[3])
+        lines.addp(self.boundary[3], self.boundary[0])
+        self._rasterized = lines.stack
 
     def has_point(self, x, y):
-        if y in self.__rasterized:
-            left, right = self.__rasterized[y]
+        if y in self._rasterized:
+            left, right = self._rasterized[y]
             return left <= x <= right
         return False
 
     def draw(self, canvas):
 
-        # canvas.create_line(self.box[0].coor, self.box[1].coor, fill="blue")
-        # canvas.create_line(self.box[1].coor, self.box[2].coor, fill="blue")
-        # canvas.create_line(self.box[2].coor, self.box[3].coor, fill="blue")
-        # canvas.create_line(self.box[3].coor, self.box[0].coor, fill="blue")
+        # anvas.create_line(self._rigid[0].coor, self._rigid[1].coor, fill="blue", tag="GRID")
+        # anvas.create_line(self._rigid[1].coor, self._rigid[2].coor, fill="blue", tag="GRID")
+        # anvas.create_line(self._rigid[2].coor, self._rigid[3].coor, fill="blue", tag="GRID")
+        # anvas.create_line(self._rigid[3].coor, self._rigid[0].coor, fill="blue", tag="GRID")
 
         canvas.create_line(self.boundary[0].coor, self.boundary[1].coor, fill="red", tag="GRID")
         canvas.create_line(self.boundary[1].coor, self.boundary[2].coor, fill="red", tag="GRID")
         canvas.create_line(self.boundary[2].coor, self.boundary[3].coor, fill="red", tag="GRID")
         canvas.create_line(self.boundary[3].coor, self.boundary[0].coor, fill="red", tag="GRID")
-
-    def set_boundary(self, corner, point):
-        self.boundary[corner] = point
 
     def get_closest_boundary(self, x, y):
         min_ = -1
@@ -224,6 +235,7 @@ class Box():
         mi_1 = 0
         mi_2 = 0
         for i in range(0, 4):
+
             p_roof = self._rigid[i].copy().sub(p_c)
             q_roof = self.boundary[i].copy().sub(q_c)
 
@@ -245,6 +257,43 @@ class Box():
         for i, point in enumerate(self._rigid):
             self._rigid[i].sub(p_c).rotate(rotation).translate(q_c)
 
+    def _homography(self):
+
+        for i in range(0, 4):
+            s = self._initial[i]
+            t = self.boundary[i]
+            self.H_A[2*i][6] = -s.x*t.x
+            self.H_A[2*i][7] = -s.y*t.x
+
+            self.H_A[2*i+1][6] = -s.x*t.y
+            self.H_A[2*i+1][7] = -s.y*t.y
+
+            self.H_B[2*i] = t.x
+            self.H_B[2*i+1] = t.y
+
+        h = np.linalg.solve(self.H_A, self.H_B)
+
+        self.H = np.linalg.inv(np.array([[h[0], h[1], h[2]],
+                                         [h[3], h[4], h[5]],
+                                         [h[6], h[7],   1]]))
+
+    def project(self, image):
+
+        self._homography()
+
+        for y in self._rasterized:
+            r = self._rasterized[y]
+            for x in range(r[0], r[1]):
+                res = np.dot(self.H, [x, y, 1])
+
+                # bilinear
+                xn = int(round((res[0]/res[2])))
+                yn = int(round((res[1]/res[2])))
+                # bilinear
+
+                new_value = image.px_orig(xn, yn)
+                image.px(x, y, new_value)
+
 
 class Grid:
 
@@ -253,14 +302,14 @@ class Grid:
 
     def __init__(self, image):
 
-        BOX_SIZE = 16
+        BOX_SIZE = 32
 
         self.__image = image
         self.__points = {}
         self.__boxes = []
 
-        imdata = self.__image.orig
-        bg = imdata[0, 0]
+        imdata = np.array(self.__image.orig, dtype='u1,u1,u1').reshape(self.__image.height, self.__image.width)
+        bg = imdata[0][0]
 
         # find borders of image
         top = self.__border(bg, imdata)
@@ -327,7 +376,7 @@ class Grid:
             if box.has_point(x, y):
 
                 control = box.get_closest_boundary(x, y)
-                control.weight = 1000000
+                control.weight = 1000
 
                 # controls[handle_id] = (point, target_pos, handle offset)
                 self._controls[handle_id] = [control, (control.x, control.y), (control.x - x, control.y - y)]
@@ -364,6 +413,10 @@ class Grid:
             for x in self.__points[y]:
                 self.__points[y][x].average_linked()
 
+        for box in self.__boxes:
+            box.rasterize()
+            box.project(self.__image)
+
 
 class ImageHelper:
 
@@ -377,20 +430,42 @@ class ImageHelper:
         self.__tk_obj = ImageTk.PhotoImage(self.__im_obj)  # need to keep reference for image to load
 
         self.__size = self.__im_obj.size
-        self.__orig = self.get_data()  # store original data of the image after load
+
+        self._data = list(self.__im_obj.getdata())
+        self._changed = False
+
+        # store original data of the image after load
+        self._orig = list(self.__im_obj.getdata())
 
         self._handles = set()
 
-    def get_data(self):
-        """ return current image data ((r, g, b) tuples) as numpy's 2-dimensional array """
-        data = self.__im_obj.getdata()
-        return np.array(data, dtype='u1,u1,u1').reshape((self.height, self.width))
+    def _update(self):
+        self.__im_obj.putdata(self._data)
+        self.__tk_obj = ImageTk.PhotoImage(self.__im_obj)  # need to keep reference for image to load
+
+    def px(self, x, y, value):
+        if 0 <= x < self.width and 0 <= y < self.height:
+            self._changed = True
+            self._data[y*self.width + x] = value
+
+    def px_orig(self, x, y):
+        if 0 <= x < self.width and 0 <= y < self.height:
+            return self._orig[y*self.width + x]
+        return 0, 0, 0
 
     def draw(self):
+        #if not self._changed:
+        #    return False
+
         self.__canvas.delete("IMAGE")
+
+        self._update()
+
         self.__canvas.create_image(self.pos, image=self.__tk_obj, tag="IMAGE")
         for h in self._handles:
             self.__canvas.tag_raise(h)
+
+        return True
 
     def select_handle(self, x, y):
         overlap = self.__canvas.find_overlapping(x, y, x, y)
@@ -434,7 +509,7 @@ class ImageHelper:
 
     @property
     def orig(self):
-        return self.__orig
+        return self._orig
 
 
 class Application:
@@ -465,6 +540,7 @@ class Application:
 
     def run(self):
         self.grid = Grid(self.image)
+        self.image.draw()
         self.grid.draw()
 
         self._loop = self.window.after(1, self.run_once)
@@ -473,11 +549,10 @@ class Application:
 
     def run_once(self):
         self.grid.regularize()
+        self.image.draw()
         self.grid.draw()
 
-        self._loop = self.window.after(1, self.run_once)
-
-
+        self._loop = self.window.after(1, app.run_once)
 
     def select_handle(self, e):
         handle_id = self.image.select_handle(e.x, e.y)
