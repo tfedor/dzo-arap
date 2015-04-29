@@ -1,10 +1,34 @@
-import datetime
+import ctypes as c
 import math
 import pprint
 import tkinter as tk
 from PIL import Image, ImageTk
 import numpy as np
-import time
+
+
+class CWrapper:
+
+    def __init__(self):
+        self._lib = c.cdll.libproject
+
+        self._clear = self._lib.clear
+        # self._clear.argtypes = []
+
+    def clear(self, data, width, height):
+        self._lib.clear(data.data_as(c.POINTER(c.c_char)), width, height)
+
+    def project(self, homography, orig, data, width, height, borders, border_y_start, border_y_end):
+
+        self._lib.project(
+            homography.data,
+            orig.data,
+            data.data,
+            width,
+            height,
+            borders.data,
+            border_y_start,
+            border_y_end
+        )
 
 
 class Line:
@@ -180,6 +204,10 @@ class Box():
         self.H_A = np.array(H_A)
         self.H_B = np.array(H_B)
 
+        self._r_min = 0
+        self._r_max = 0
+        self._r_flat = np.array([])
+
     def rasterize(self):
         lines = Line()
         lines.addp(self.boundary[0], self.boundary[1])
@@ -187,6 +215,10 @@ class Box():
         lines.addp(self.boundary[2], self.boundary[3])
         lines.addp(self.boundary[3], self.boundary[0])
         self._rasterized = lines.stack
+
+        self._r_min = min(self._rasterized.keys())
+        self._r_max = max(self._rasterized.keys())
+        self._r_flat = np.array([c for key in range(self._r_min, self._r_max) for c in self._rasterized[key]]).astype(int)
 
     def has_point(self, x, y):
         if y in self._rasterized:
@@ -196,10 +228,10 @@ class Box():
 
     def draw(self, canvas):
 
-        # anvas.create_line(self._rigid[0].coor, self._rigid[1].coor, fill="blue", tag="GRID")
-        # anvas.create_line(self._rigid[1].coor, self._rigid[2].coor, fill="blue", tag="GRID")
-        # anvas.create_line(self._rigid[2].coor, self._rigid[3].coor, fill="blue", tag="GRID")
-        # anvas.create_line(self._rigid[3].coor, self._rigid[0].coor, fill="blue", tag="GRID")
+        # canvas.create_line(self._rigid[0].coor, self._rigid[1].coor, fill="blue", tag="GRID")
+        # canvas.create_line(self._rigid[1].coor, self._rigid[2].coor, fill="blue", tag="GRID")
+        # canvas.create_line(self._rigid[2].coor, self._rigid[3].coor, fill="blue", tag="GRID")
+        # canvas.create_line(self._rigid[3].coor, self._rigid[0].coor, fill="blue", tag="GRID")
 
         canvas.create_line(self.boundary[0].coor, self.boundary[1].coor, fill="red", tag="GRID")
         canvas.create_line(self.boundary[1].coor, self.boundary[2].coor, fill="red", tag="GRID")
@@ -281,6 +313,10 @@ class Box():
 
         self._homography()
 
+        cw = CWrapper()
+        cw.project(self.H.ctypes, image.corig, image.cdata, image.width, image.height, self._r_flat.ctypes, self._r_min, self._r_max)
+
+        """
         for y in self._rasterized:
             r = self._rasterized[y]
             for x in range(r[0], r[1]):
@@ -293,6 +329,7 @@ class Box():
 
                 new_value = image.px_orig(xn, yn)
                 image.px(x, y, new_value)
+                """
 
 
 class Grid:
@@ -308,7 +345,7 @@ class Grid:
         self.__points = {}
         self.__boxes = []
 
-        imdata = np.array(self.__image.orig, dtype='u1,u1,u1').reshape(self.__image.height, self.__image.width)
+        imdata = self.__image.orig
         bg = imdata[0][0]
 
         # find borders of image
@@ -349,7 +386,7 @@ class Grid:
         for row in data:
             i = 0
             for rgb in row:
-                if rgb != empty:
+                if rgb[0] != empty[0] and rgb[1] != empty[1] and rgb[2] != empty[2]:
                     stop = True
                     break
                 i += 1
@@ -376,7 +413,7 @@ class Grid:
             if box.has_point(x, y):
 
                 control = box.get_closest_boundary(x, y)
-                control.weight = 1000
+                control.weight = 1
 
                 # controls[handle_id] = (point, target_pos, handle offset)
                 self._controls[handle_id] = [control, (control.x, control.y), (control.x - x, control.y - y)]
@@ -413,6 +450,9 @@ class Grid:
             for x in self.__points[y]:
                 self.__points[y][x].average_linked()
 
+        cw = CWrapper()
+        cw.clear(self.__image.cdata, self.__image.width, self.__image.height)
+
         for box in self.__boxes:
             box.rasterize()
             box.project(self.__image)
@@ -431,26 +471,34 @@ class ImageHelper:
 
         self.__size = self.__im_obj.size
 
-        self._data = list(self.__im_obj.getdata())
+        self._data = np.array(self.__im_obj)
         self._changed = False
 
         # store original data of the image after load
-        self._orig = list(self.__im_obj.getdata())
+        self._orig = np.array(self.__im_obj)
 
         self._handles = set()
 
     def _update(self):
-        self.__im_obj.putdata(self._data)
+        self.__im_obj = Image.fromarray(self._data)  # putdata(self._data)
         self.__tk_obj = ImageTk.PhotoImage(self.__im_obj)  # need to keep reference for image to load
+
+    @property
+    def cdata(self):
+        return self._data.ctypes
+
+    @property
+    def corig(self):
+        return self._orig.ctypes
 
     def px(self, x, y, value):
         if 0 <= x < self.width and 0 <= y < self.height:
             self._changed = True
-            self._data[y*self.width + x] = value
+            self._data[y][x] = value
 
     def px_orig(self, x, y):
         if 0 <= x < self.width and 0 <= y < self.height:
-            return self._orig[y*self.width + x]
+            return self._orig[y][x]
         return 0, 0, 0
 
     def draw(self):
@@ -543,7 +591,7 @@ class Application:
         self.image.draw()
         self.grid.draw()
 
-        self._loop = self.window.after(1, self.run_once)
+        self.run_once()
 
         self.window.mainloop()
 
