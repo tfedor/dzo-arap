@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cmath>
+#include <algorithm>
 
 #define R (0)
 #define G (1)
@@ -36,15 +37,57 @@ extern "C" void project(double * homography, char * orig, char * data, int width
             double rx, ry;
             dot(homography, x, y, rx, ry);
 
+            int data_index = y*width*3 + x*3;
+
+            //
+            /*
+            int lft = floor(rx);
+            int rgt = ceil(rx);
+
+            int top = floor(ry);
+            int btm = ceil(ry);
+
+            if (lft >= 0 && rgt < width && top >= 0 && btm < height) {
+                double coefX = rx-(double)lft;
+                double coefY = ry-(double)top;
+
+                double tl = (1-coefX)*(1-coefY);
+                double tr = coefX*(1-coefY);
+                double bl = (1-coefX)*coefY;
+                double br = coefX*coefY;
+
+                data[data_index + R] = std::min(255, (int)round(
+                                       tl*orig[top*width*3 + lft*3 + R]
+                                     + tr*orig[top*width*3 + rgt*3 + R]
+                                     + bl*orig[btm*width*3 + lft*3 + R]
+                                     + br*orig[btm*width*3 + rgt*3 + R]));
+
+                data[data_index + G] = std::min(255, (int)round(
+                                       tl*orig[top*width*3 + lft*3 + G]
+                                     + tr*orig[top*width*3 + rgt*3 + G]
+                                     + bl*orig[btm*width*3 + lft*3 + G]
+                                     + br*orig[btm*width*3 + rgt*3 + G]));
+
+                data[data_index + B] = std::min(255, (int)round(
+                                       tl*orig[top*width*3 + lft*3 + B]
+                                     + tr*orig[top*width*3 + rgt*3 + B]
+                                     + bl*orig[btm*width*3 + lft*3 + B]
+                                     + br*orig[btm*width*3 + rgt*3 + B]));
+            } else {
+                data[data_index + R] = 0;
+                data[data_index + G] = 0;
+                data[data_index + B] = 0;
+            }
+            */
+            //
+
             int xn = round(rx);
             int yn = round(ry);
-
-            int data_index = y*width*3 + x*3;
             int orig_index = yn*width*3 + xn*3;
 
             if (orig_index < 0 || orig_index >= max_index) {
                 data[data_index + R] = 255;
-                data[data_index + G] = 0;
+                data[data_index + G] = 255;
                 data[data_index + B] = 255;
             } else {
                 data[data_index + R] = orig[orig_index + R];

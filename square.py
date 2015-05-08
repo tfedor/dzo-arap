@@ -5,6 +5,7 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import numpy as np
 
+from datetime import datetime
 
 class CWrapper:
 
@@ -42,7 +43,7 @@ class Line:
         self.res = []
 
     def addp(self, p1, p2):
-        self.add(p1.x, p1.y, p2.x, p2.y)
+        self.add(int(round(p1.x)), int(round(p1.y)), int(round(p2.x)), int(round(p2.y)))
 
     def add(self, x0, y0, x1, y1):
 
@@ -102,6 +103,12 @@ class Point():
         self.pos = [x, y]
         self.linked = []
         self.w = w
+
+        self.init = [x, y]
+
+    def reset(self):
+        self.pos[0] = self.init[0]
+        self.pos[1] = self.init[1]
 
     @property
     def weight(self):
@@ -164,8 +171,8 @@ class Point():
         x /= len(self.linked)
         y /= len(self.linked)
 
-        self.x = int(round(x))
-        self.y = int(round(y))
+        self.x = x
+        self.y = y
 
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
@@ -228,10 +235,15 @@ class Box():
 
     def draw(self, canvas):
 
-        # canvas.create_line(self._rigid[0].coor, self._rigid[1].coor, fill="blue", tag="GRID")
-        # canvas.create_line(self._rigid[1].coor, self._rigid[2].coor, fill="blue", tag="GRID")
-        # canvas.create_line(self._rigid[2].coor, self._rigid[3].coor, fill="blue", tag="GRID")
-        # canvas.create_line(self._rigid[3].coor, self._rigid[0].coor, fill="blue", tag="GRID")
+        # canvas.create_line(self._initial[0].coor, self._initial[1].coor, fill="yellow", tag="GRID")
+        # canvas.create_line(self._initial[1].coor, self._initial[2].coor, fill="yellow", tag="GRID")
+        # canvas.create_line(self._initial[2].coor, self._initial[3].coor, fill="yellow", tag="GRID")
+        # canvas.create_line(self._initial[3].coor, self._initial[0].coor, fill="yellow", tag="GRID")
+
+        canvas.create_line(self._rigid[0].coor, self._rigid[1].coor, fill="blue", tag="GRID")
+        canvas.create_line(self._rigid[1].coor, self._rigid[2].coor, fill="blue", tag="GRID")
+        canvas.create_line(self._rigid[2].coor, self._rigid[3].coor, fill="blue", tag="GRID")
+        canvas.create_line(self._rigid[3].coor, self._rigid[0].coor, fill="blue", tag="GRID")
 
         canvas.create_line(self.boundary[0].coor, self.boundary[1].coor, fill="red", tag="GRID")
         canvas.create_line(self.boundary[1].coor, self.boundary[2].coor, fill="red", tag="GRID")
@@ -247,7 +259,24 @@ class Box():
                 min_ = dist
                 closest = b
         return closest
+    
+    
+    @property
+    def centroid_initial(self):
+        w = self.boundary[0].weight + self.boundary[1].weight + self.boundary[2].weight + self.boundary[3].weight
+        return Point((self.boundary[0].weight * self._initial[0].x
+                      + self.boundary[1].weight * self._initial[1].x
+                      + self.boundary[2].weight * self._initial[2].x
+                      + self.boundary[3].weight * self._initial[3].x) / w,
+                     (self.boundary[0].weight * self._initial[0].y
+                      + self.boundary[1].weight * self._initial[1].y
+                      + self.boundary[2].weight * self._initial[2].y
+                      + self.boundary[3].weight * self._initial[3].y) / w)
 
+        # return Point((self._initial[0].x + self._initial[1].x + self._initial[2].x + self._initial[3].x) / 4,
+        #              (self._initial[0].y + self._initial[1].y + self._initial[2].y + self._initial[3].y) / 4)
+
+    
     @property
     def centroid_box(self):
         return Point((self._rigid[0].x + self._rigid[1].x + self._rigid[2].x + self._rigid[3].x) / 4,
@@ -255,12 +284,19 @@ class Box():
 
     @property
     def centroid_boundary(self):
-        return Point((self.boundary[0].x + self.boundary[1].x + self.boundary[2].x + self.boundary[3].x) / 4,
-                     (self.boundary[0].y + self.boundary[1].y + self.boundary[2].y + self.boundary[3].y) / 4)
+        w = self.boundary[0].weight + self.boundary[1].weight + self.boundary[2].weight + self.boundary[3].weight
+        return Point((self.boundary[0].weight * self.boundary[0].x
+                      + self.boundary[1].weight * self.boundary[1].x
+                      + self.boundary[2].weight * self.boundary[2].x
+                      + self.boundary[3].weight * self.boundary[3].x) / w,
+                     (self.boundary[0].weight * self.boundary[0].y
+                      + self.boundary[1].weight * self.boundary[1].y
+                      + self.boundary[2].weight * self.boundary[2].y
+                      + self.boundary[3].weight * self.boundary[3].y) / w)
 
     def fit(self):
 
-        p_c = self.centroid_box
+        p_c = self.centroid_initial
         q_c = self.centroid_boundary
 
         rotation = [[0, 0], [0, 0]]
@@ -268,7 +304,7 @@ class Box():
         mi_2 = 0
         for i in range(0, 4):
 
-            p_roof = self._rigid[i].copy().sub(p_c)
+            p_roof = self._initial[i].copy().sub(p_c)
             q_roof = self.boundary[i].copy().sub(q_c)
 
             rotation[0][0] += self.boundary[i].weight * (p_roof.x * q_roof.x + p_roof.y * q_roof.y)
@@ -287,6 +323,8 @@ class Box():
         rotation[1][1] /= mi
 
         for i, point in enumerate(self._rigid):
+            self._rigid[i].x = self._initial[i].x
+            self._rigid[i].y = self._initial[i].y
             self._rigid[i].sub(p_c).rotate(rotation).translate(q_c)
 
     def _homography(self):
@@ -316,21 +354,6 @@ class Box():
         cw = CWrapper()
         cw.project(self.H.ctypes, image.corig, image.cdata, image.width, image.height, self._r_flat.ctypes, self._r_min, self._r_max)
 
-        """
-        for y in self._rasterized:
-            r = self._rasterized[y]
-            for x in range(r[0], r[1]):
-                res = np.dot(self.H, [x, y, 1])
-
-                # bilinear
-                xn = int(round((res[0]/res[2])))
-                yn = int(round((res[1]/res[2])))
-                # bilinear
-
-                new_value = image.px_orig(xn, yn)
-                image.px(x, y, new_value)
-                """
-
 
 class Grid:
 
@@ -340,6 +363,7 @@ class Grid:
     def __init__(self, image):
 
         BOX_SIZE = 32
+        self.BOX_SIZE = BOX_SIZE
 
         self.__image = image
         self.__points = {}
@@ -413,10 +437,12 @@ class Grid:
             if box.has_point(x, y):
 
                 control = box.get_closest_boundary(x, y)
-                control.weight = 1
+                control.weight = 1000
 
                 # controls[handle_id] = (point, target_pos, handle offset)
                 self._controls[handle_id] = [control, (control.x, control.y), (control.x - x, control.y - y)]
+
+                self._set_weights(control.x, control.y, 1000)
 
                 return True
 
@@ -438,6 +464,7 @@ class Grid:
             box.draw(self.__image.canvas)
 
     def regularize(self):
+
         for handle_id in self._controls:
             control = self._controls[handle_id]
             control[0].x = control[1][0]
@@ -456,6 +483,31 @@ class Grid:
         for box in self.__boxes:
             box.rasterize()
             box.project(self.__image)
+
+    def _set_weights(self, control_x, control_y, weight):
+
+        queue = []
+        closed = set()
+
+        queue.append((control_x, control_y, weight))
+        closed.add((control_x, control_y))
+
+        size = self.BOX_SIZE
+        d = [(-size, 0), (size, 0), (0, -size), (0, size)]
+
+        while len(queue) != 0:
+            x, y, w = queue.pop()
+
+            self.__points[y][x].weight = max(w, self.__points[y][x].weight)
+            print(x, y, self.__points[y][x].weight)
+
+            for dx, dy in d:
+                nbr_x = x+dx
+                nbr_y = y+dy
+                nbr_w = w-self.BOX_SIZE
+                if nbr_y in self.__points and nbr_x in self.__points[nbr_y] and (nbr_x, nbr_y) not in closed:
+                    queue.append((nbr_x, nbr_y, nbr_w))
+                    closed.add((nbr_x, nbr_y))
 
 
 class ImageHelper:
@@ -578,6 +630,9 @@ class Application:
 
         self._loop = None
 
+        self.__run = False
+        self._t_last = 0
+
     def load_image(self, path):
 
         self.image = ImageHelper(self.canvas, (self.width/2, self.height/2), path)
@@ -596,9 +651,23 @@ class Application:
         self.window.mainloop()
 
     def run_once(self):
+
+        dt = datetime.now()
+        t1 = dt.timestamp()
+
         self.grid.regularize()
-        self.image.draw()
-        self.grid.draw()
+
+        dt = datetime.now()
+        # print(dt.timestamp()-t1)
+
+        dt = datetime.now()
+        delta = dt.timestamp()-self._t_last
+        if 0 < delta > 0.03:  # 0.03 - 30 FPS
+            self.image.draw()
+            self.grid.draw()
+
+            dt = datetime.now()
+            self._t_last = dt.timestamp()
 
         self._loop = self.window.after(1, app.run_once)
 
@@ -639,7 +708,6 @@ app.bind("<Button-1>", app.select_handle)
 app.bind("<ButtonRelease-1>", app.deselect_handle)
 app.bind("<Button-3>", app.remove_handle)
 app.bind("<B1-Motion>", app.move_handle)
-app.bind("<Button-2>", app.run_once)
 
 app.run()
 
