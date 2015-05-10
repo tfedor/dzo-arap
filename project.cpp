@@ -1,6 +1,9 @@
 #include <cstdio>
 #include <cmath>
 #include <algorithm>
+#include <iostream>
+#include <map>
+#include <bitset>
 
 #define R (0)
 #define G (1)
@@ -14,88 +17,147 @@ extern "C" void clear(char * data, int width, int height) {
 
 }
 
-void dot(double * homography, int x, int y, double &rx, double &ry) {
+void dot(double * homography, float x, float y, float &rx, float &ry) {
     double rw;
 
     rx = homography[0]*x + homography[1]*y + homography[2];
     ry = homography[3]*x + homography[4]*y + homography[5];
     rw = homography[6]*x + homography[7]*y + homography[8];
 
+    // std::cout << rx << ", " << ry << ", " << rw << std::endl;
+
     rx /= rw;
     ry /= rw;
 }
 
-extern "C" void project(double * homography, char * orig, char * data, int width, int height, int * borders, int border_y_start, int border_y_end) {
+//
+void store(std::map<int,int> &left, std::map<int,int> &right, int x, int y) {
+    if (left.count(y) > 0) {
+        if (x < left[y]) {
+            left[y] = x;
+        } else if (right[y] < x) {
+            right[y] = x;
+        }
+    } else {
+        left[y] = x;
+        right[y] = x;
+    }
+}
+void points(std::map<int, int> &left, std::map<int,int> &right, bool swap, int x0, int y0, int x1, int y1) {
+
+    if (swap) {
+        std::swap(x0, y0);
+        std::swap(x1, y1);
+    }
+
+    int dx = abs(x1-x0);
+    int dy = abs(y1-y0);
+
+    if (x0 > x1) {
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+    }
+
+    if (y1 < y0) {
+        y0 = -y0;
+        y1 = -y1;
+    }
+
+    int D = 2*dy - dx;
+
+    // add
+    if (swap) {
+        store(left, right, abs(y0), abs(x0));
+    } else {
+        store(left, right, abs(x0), abs(y0));
+    }
+
+    int y = y0;
+    for (int x=x0+1; x<x1; x++) {
+        D += 2*dy;
+        if (D > 0) {
+            y += 1;
+            D -= 2*dx;
+        }
+
+        // add
+        if (swap) {
+            store(left, right, abs(y), abs(x));
+        } else {
+            store(left, right, abs(x), abs(y));
+        }
+    }
+}
+extern "C" void rasterize(int * corners, std::map<int,int> &left, std::map<int,int> &right) {
+
+    for (int i=0; i<4; i++) {
+        int x0 = corners[2*i];
+        int y0 = corners[2*i + 1];
+        int x1 = corners[(2*i+ 2) % 8];
+        int y1 = corners[(2*i+ 3) % 8];
+
+        int dx = abs(x1-x0);
+        int dy = abs(y1-y0);
+
+        points(left, right, (dx <= dy), x0, y0, x1, y1);
+    }
+}
+
+//
+extern "C" void project(double * homography, char * orig, char * data, int width, int height, int * corners) {
+
+    std::map<int,int> left;
+    std::map<int,int> right;
+    rasterize(corners, left, right);
 
     int max_index = height*width*3;
 
-    int bi = 0;
-    for (int y=border_y_start; y<border_y_end; y++) {
+    std::map<int,int>::iterator it;
 
-        for (int x=borders[bi]; x<=borders[bi+1]; x++) {
+    for (it = left.begin(); it != left.end(); ++it) {
+        int y = it->first;
+        int x_left = it->second;
+        int x_right = right[y];
 
-            double rx, ry;
-            dot(homography, x, y, rx, ry);
+        for (int x=x_left; x<=x_right; x++) {
 
-            int data_index = y*width*3 + x*3;
+            float rx, ry;
+            dot(homography, (float)x, (float)y, rx, ry);
+
+            int data_index = (y*width + x)*3;
 
             //
-            /*
             int lft = floor(rx);
-            int rgt = ceil(rx);
+            int rgt = lft+1;
 
             int top = floor(ry);
-            int btm = ceil(ry);
+            int btm = top+1;
 
             if (lft >= 0 && rgt < width && top >= 0 && btm < height) {
-                double coefX = rx-(double)lft;
-                double coefY = ry-(double)top;
+                float coefX = rx-(float)lft;
+                float coefY = ry-(float)top;
 
-                double tl = (1-coefX)*(1-coefY);
-                double tr = coefX*(1-coefY);
-                double bl = (1-coefX)*coefY;
-                double br = coefX*coefY;
+                //std::cout << ry << " " << top << "=" << coefY << std::endl;
+                //std::cout << coefX << " " << coefY << std::endl;
 
-                data[data_index + R] = std::min(255, (int)round(
-                                       tl*orig[top*width*3 + lft*3 + R]
-                                     + tr*orig[top*width*3 + rgt*3 + R]
-                                     + bl*orig[btm*width*3 + lft*3 + R]
-                                     + br*orig[btm*width*3 + rgt*3 + R]));
+                float tl = (1.f-coefX)*(1.f-coefY);
+                float tr = coefX*(1.f-coefY);
+                float bl = (1.f-coefX)*coefY;
+                float br = coefX*coefY;
 
-                data[data_index + G] = std::min(255, (int)round(
-                                       tl*orig[top*width*3 + lft*3 + G]
-                                     + tr*orig[top*width*3 + rgt*3 + G]
-                                     + bl*orig[btm*width*3 + lft*3 + G]
-                                     + br*orig[btm*width*3 + rgt*3 + G]));
-
-                data[data_index + B] = std::min(255, (int)round(
-                                       tl*orig[top*width*3 + lft*3 + B]
-                                     + tr*orig[top*width*3 + rgt*3 + B]
-                                     + bl*orig[btm*width*3 + lft*3 + B]
-                                     + br*orig[btm*width*3 + rgt*3 + B]));
+                for (int c=0; c<3; c++) {
+                    float clr = tl*((int)round(orig[(top*width + lft)*3 + c])&255)
+                              + tr*((int)round(orig[(top*width + rgt)*3 + c])&255)
+                              + bl*((int)round(orig[(btm*width + lft)*3 + c])&255)
+                              + br*((int)round(orig[(btm*width + rgt)*3 + c])&255);
+                    data[data_index + c] = ((int)clr)&255;
+                }
             } else {
-                data[data_index + R] = 0;
-                data[data_index + G] = 0;
-                data[data_index + B] = 0;
-            }
-            */
-            //
-
-            int xn = round(rx);
-            int yn = round(ry);
-            int orig_index = yn*width*3 + xn*3;
-
-            if (orig_index < 0 || orig_index >= max_index) {
                 data[data_index + R] = 255;
-                data[data_index + G] = 255;
+                data[data_index + G] = 0;
                 data[data_index + B] = 255;
-            } else {
-                data[data_index + R] = orig[orig_index + R];
-                data[data_index + G] = orig[orig_index + G];
-                data[data_index + B] = orig[orig_index + B];
             }
         }
-
-        bi += 2;
     }
 }
+
