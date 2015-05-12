@@ -1,6 +1,7 @@
 import numpy as np
 from PIL import Image, ImageTk
 
+
 class ImageHelper:
 
     HANDLE_RADIUS = 5

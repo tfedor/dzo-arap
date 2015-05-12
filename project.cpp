@@ -24,8 +24,6 @@ void dot(double * homography, float x, float y, float &rx, float &ry) {
     ry = homography[3]*x + homography[4]*y + homography[5];
     rw = homography[6]*x + homography[7]*y + homography[8];
 
-    // std::cout << rx << ", " << ry << ", " << rw << std::endl;
-
     rx /= rw;
     ry /= rw;
 }
