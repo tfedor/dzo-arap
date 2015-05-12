@@ -5,6 +5,7 @@ class Point():
 
     def __init__(self, x, y, w=1):
         self.pos = [x, y]
+        self._init = (x, y)  # intial state of point, doesn't need to be mutable
         self.linked = []
         self._link_cnt = 0
         self.w = w
@@ -27,6 +28,10 @@ class Point():
     def x(self):
         return self.pos[0]
 
+    @property
+    def ix(self):
+        return self._init[0]
+
     @x.setter
     def x(self, value):
         self.pos[0] = value
@@ -34,6 +39,10 @@ class Point():
     @property
     def y(self):
         return self.pos[1]
+
+    @property
+    def iy(self):
+        return self._init[1]
 
     @y.setter
     def y(self, value):

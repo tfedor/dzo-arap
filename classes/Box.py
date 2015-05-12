@@ -7,7 +7,7 @@ from classes.Point import Point
 
 class Box():
 
-    def __init__(self, b_tl, b_tr, b_br, b_bl, cw):
+    def __init__(self, cw, b_tl, b_tr, b_br, b_bl):
         # initial position of a box, used for modifying image
         self._initial = [b_tl.copy(), b_tr.copy(), b_br.copy(), b_bl.copy()]
 

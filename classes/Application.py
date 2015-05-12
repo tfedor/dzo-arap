@@ -9,7 +9,7 @@ from classes.CWrapper import CWrapper
 class Application:
 
     def __init__(self, path):
-        self.cw = CWrapper()
+        self._cw = CWrapper()
 
         self._window = tk.Tk()
 
@@ -27,13 +27,13 @@ class Application:
         self._t_last = 0
 
     def load_image(self, path):
-        self._image = ImageHelper(self.cw, path)
+        self._image = ImageHelper(self._cw, path)
 
     def bind(self, event, fn):
         self._canvas.bind(event, fn)
 
     def run(self):
-        self._grid = Grid(self._image)
+        self._grid = Grid(self._cw, self._image)
         self._image.draw()
         self._grid.draw()
 

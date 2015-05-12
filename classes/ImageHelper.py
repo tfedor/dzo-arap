@@ -70,50 +70,10 @@ class ImageHelper:
         """
         return self._orig.ctypes
 
-    def _is_foreground(self, px, lower, upper):
-        return (px[0] < lower[0] or px[0] > upper[0]
-             or px[1] < lower[1] or px[1] > upper[1]
-             or px[2] < lower[2] or px[2] > upper[2])
-
     def _compute_mask(self):
+        """ Compute mask of image - foreground is True, background is False """
         self._mask = np.full((self.height, self.width), True, dtype=np.bool)
-
         self.cw.mask(self.cmask, self.corig, self.width, self.height, 10)
-
-        return
-        tolerance = 10
-        empty = self._orig[0][0]
-
-        # bounds
-        lower = (min(255, empty[0] - tolerance), min(255, empty[1] - tolerance), min(255, empty[2] - tolerance))
-        upper = (max(255, empty[0] + tolerance), max(255, empty[1] + tolerance), max(255, empty[2] + tolerance))
-
-        queue = [(0, 0)]
-
-        closed = {}
-        for y in range(0, self.height):
-            closed[y] = set()
-
-        while len(queue) != 0:
-
-            x, y = queue.pop()
-
-            if x < 0 or x >= self.width or y < 0 or y >= self.height:
-                continue
-
-            if x in closed[y]:
-                continue
-
-            closed[y].add(x)
-
-            masked = self._is_foreground(self._orig[y][x], lower, upper)
-            if not masked:
-                self._mask[y][x] = False
-
-                queue.append((x-1, y))
-                queue.append((x+1, y))
-                queue.append((x, y-1))
-                queue.append((x, y+1))
 
     def _update(self):
         """ Create new image from current data """
@@ -169,7 +129,3 @@ class ImageHelper:
         """ Removes handle """
         self._canvas.delete(handle_id)
         self._handles.remove(handle_id)
-
-    @property
-    def orig(self):
-        return self._orig
