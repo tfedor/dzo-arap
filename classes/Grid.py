@@ -11,6 +11,8 @@ class Grid:
 
     def __init__(self, image):
 
+        self._cw = CWrapper()
+
         BOX_SIZE = 32
         self.BOX_SIZE = BOX_SIZE
 
@@ -42,7 +44,8 @@ class Grid:
                             self.__add_point(x, y),
                             self.__add_point(x+BOX_SIZE, y),
                             self.__add_point(x+BOX_SIZE, y+BOX_SIZE),
-                            self.__add_point(x, y+BOX_SIZE)
+                            self.__add_point(x, y+BOX_SIZE),
+                            self._cw
                         )
                     )
 
@@ -126,8 +129,7 @@ class Grid:
                 self.__points[y][x].average_linked()
 
     def project(self):
-        cw = CWrapper()
-        cw.clear(self.__image.cdata, self.__image.width, self.__image.height)
+        self._cw.clear(self.__image.cdata, self.__image.width, self.__image.height)
 
         for box in self.__boxes:
             box.project(self.__image)

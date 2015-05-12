@@ -2,13 +2,12 @@ import numpy as np
 import math
 
 from classes.Line import Line
-from classes.CWrapper import CWrapper
 from classes.Point import Point
 
 
 class Box():
 
-    def __init__(self, b_tl, b_tr, b_br, b_bl):
+    def __init__(self, b_tl, b_tr, b_br, b_bl, cw):
         # initial position of a box, used for modifying image
         self._initial = [b_tl.copy(), b_tr.copy(), b_br.copy(), b_bl.copy()]
 
@@ -45,6 +44,8 @@ class Box():
         self.compute_source_centroid()
 
         self._qc = Point(0, 0)
+
+        self._cw = cw
 
     def rasterize(self):
 
@@ -179,7 +180,6 @@ class Box():
                                          [h[3], h[4], h[5]],
                                          [h[6], h[7],   1]])
 
-
         """
         for i in range(0, 4):
             s = self._initial[i]
@@ -199,13 +199,11 @@ class Box():
                                          [h[3], h[4], h[5]],
                                          [h[6], h[7],   1]]))
 
-
     def project(self, image):
 
         self._homography()
 
         vert = np.array([(int(round(p.x)), int(round(p.y))) for p in self.boundary])
 
-        cw = CWrapper()
-        cw.project(self.H.ctypes, image.corig, image.cdata, image.width, image.height, vert.ctypes)
+        self._cw.project(self.H.ctypes, image.cmask, image.corig, image.cdata, image.width, image.height, vert.ctypes)
 

@@ -9,6 +9,12 @@
 #define G (1)
 #define B (2)
 
+int test = 124;
+
+extern "C" void testing() {
+    test++;
+}
+
 extern "C" void clear(char * data, int width, int height) {
 
     for (int i=0; i<width*height*3; i++) {
@@ -102,7 +108,9 @@ extern "C" void rasterize(int * corners, std::map<int,int> &left, std::map<int,i
 }
 
 //
-extern "C" void project(double * homography, char * orig, char * data, int width, int height, int * corners) {
+extern "C" void project(double * homography, bool * mask, char * orig, char * data, int width, int height, int * corners) {
+
+    printf("%i\n", test);
 
     std::map<int,int> left;
     std::map<int,int> right;
@@ -122,8 +130,6 @@ extern "C" void project(double * homography, char * orig, char * data, int width
             float rx, ry;
             dot(homography, (float)x, (float)y, rx, ry);
 
-            int data_index = (y*width + x)*3;
-
             //
             int lft = floor(rx);
             int rgt = lft+1;
@@ -131,7 +137,11 @@ extern "C" void project(double * homography, char * orig, char * data, int width
             int top = floor(ry);
             int btm = top+1;
 
+            int data_index = (y*width + x)*3;
+
             if (lft >= 0 && rgt < width && top >= 0 && btm < height) {
+                if (!mask[top*width + lft] && !mask[top*width + rgt] && !mask[btm*width + lft] && !mask[btm*width + rgt]) {continue;}
+
                 float coefX = rx-(float)lft;
                 float coefY = ry-(float)top;
 
