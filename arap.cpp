@@ -155,6 +155,11 @@ void points(std::map<int, int> &left, std::map<int,int> &right, bool swap, int x
 }
 extern "C" void rasterize(int * corners, std::map<int,int> &left, std::map<int,int> &right) {
 
+    /*
+    Bresenham's line
+    http://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+    */
+
     for (int i=0; i<4; i++) {
         int x0 = corners[2*i];
         int y0 = corners[2*i + 1];

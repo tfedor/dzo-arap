@@ -1,32 +1,26 @@
 class Point():
-    """ Embedding lattice point with defined position, neighbourhood and search area """
-
-    w = 1
+    """ Point of Grid (i.e. embedding lattice) of the image """
 
     def __init__(self, x, y, w=1):
-        self.pos = [x, y]
-        self._init = (x, y)  # intial state of point, doesn't need to be mutable
-        self.linked = []
-        self._link_cnt = 0
-        self.w = w
+        """
+        :param x: x-coordinate
+        :param y: y-coordinate
+        :param w: weight
+        """
 
-        self.init = [x, y]
+        self._pos = [x, y]
+        self._init = (x, y)  # intial state of point, doesn't need to be mutable
+        self._linked = []
+        self._link_cnt = 0
+        self.weight = w
 
     def reset(self):
-        self.pos[0] = self.init[0]
-        self.pos[1] = self.init[1]
-
-    @property
-    def weight(self):
-        return self.w
-
-    @weight.setter
-    def weight(self, value):
-        self.w = value
+        self._pos[0] = self._init[0]
+        self._pos[1] = self._init[1]
 
     @property
     def x(self):
-        return self.pos[0]
+        return self._pos[0]
 
     @property
     def ix(self):
@@ -34,11 +28,11 @@ class Point():
 
     @x.setter
     def x(self, value):
-        self.pos[0] = value
+        self._pos[0] = value
 
     @property
     def y(self):
-        return self.pos[1]
+        return self._pos[1]
 
     @property
     def iy(self):
@@ -46,11 +40,11 @@ class Point():
 
     @y.setter
     def y(self, value):
-        self.pos[1] = value
+        self._pos[1] = value
 
     @property
     def coor(self):
-        return self.pos[0], self.pos[1]
+        return self._pos[0], self._pos[1]
 
     def copy(self):
         return Point(self.x, self.y, self.weight)
@@ -73,13 +67,14 @@ class Point():
         return self
 
     def link(self, other):
-        self.linked.append(other)
+        """ Link another point """
+        self._linked.append(other)
         self._link_cnt += 1
 
     def average_linked(self):
         x = 0
         y = 0
-        for point in self.linked:
+        for point in self._linked:
             x += point.x
             y += point.y
         x /= self._link_cnt
@@ -93,4 +88,3 @@ class Point():
 
     def __ne__(self, other):
         return not self.__eq__(other)
-

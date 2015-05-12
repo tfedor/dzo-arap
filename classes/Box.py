@@ -1,16 +1,22 @@
 import numpy as np
 import math
 
-from classes.Line import Line
 from classes.Point import Point
 
 
 class Box():
+    """ Represents one box in a grid layed over image"""
 
     def __init__(self, cw, b_tl, b_tr, b_br, b_bl):
-        # initial position of a box, used for modifying image
-        self._initial = [b_tl.copy(), b_tr.copy(), b_br.copy(), b_bl.copy()]
+        """
+        :param cw: CWrapper object
+        :param b_tl: top-left point of a box
+        :param b_tr: top-right point of a box
+        :param b_br: bottom-right point of a box
+        :param b_bl: bottom-left point of a box
+        """
 
+        self._cw = cw
         self.boundary = [b_tl, b_tr, b_br, b_bl]
 
         # box fitted into boundaries
@@ -21,69 +27,36 @@ class Box():
         self.boundary[2].link(self._rigid[2])
         self.boundary[3].link(self._rigid[3])
 
-        self._rasterized = []
-        self.rasterize()
-
+        # homography matrices
         self.H = None
 
         H_A = []
         H_B = [None]*8
-        for s in self._initial:
-            H_A.append([s.x, s.y, 1, 0, 0, 0, None, None])
-            H_A.append([0, 0, 0, s.x, s.y, 1, None, None])
+        for s in self._rigid:
+            H_A.append([s.ix, s.iy, 1, 0, 0, 0, None, None])
+            H_A.append([0, 0, 0, s.ix, s.iy, 1, None, None])
 
         self.H_A = np.array(H_A)
         self.H_B = np.array(H_B)
 
-        self._r_min = 0
-        self._r_max = 0
-        self._r_flat = np.array([])
-
-        #
-        self._pc = Point(0, 0)
+        # centroids cache
+        self._qc = Point(0, 0)  # target centroid
+        self._pc = Point(0, 0)  # source centroid, same during whole object live
         self.compute_source_centroid()
 
-        self._qc = Point(0, 0)
-
-        self._cw = cw
-
-    def rasterize(self):
-
-        lines = Line()
-        lines.addp(self.boundary[0], self.boundary[1])
-        lines.addp(self.boundary[1], self.boundary[2])
-        lines.addp(self.boundary[2], self.boundary[3])
-        lines.addp(self.boundary[3], self.boundary[0])
-        self._rasterized = lines.stack
-
-        self._r_min = min(self._rasterized.keys())
-        self._r_max = max(self._rasterized.keys())
-        self._r_flat = np.array([c for key in range(self._r_min, self._r_max) for c in self._rasterized[key]]).astype(int)
-
     def has_point(self, x, y):
-        if y in self._rasterized:
-            left, right = self._rasterized[y]
-            return left <= x <= right
-        return False
+        """
+        Checks whether given coordinates are inside of this box's bounding box
+        :return: boolean
+        """
 
-    def draw(self, canvas):
+        xs = [p.x for p in self.boundary]
+        ys = [p.y for p in self.boundary]
 
-        # canvas.create_line(self._initial[0].coor, self._initial[1].coor, fill="yellow", tag="GRID")
-        # canvas.create_line(self._initial[1].coor, self._initial[2].coor, fill="yellow", tag="GRID")
-        # canvas.create_line(self._initial[2].coor, self._initial[3].coor, fill="yellow", tag="GRID")
-        # canvas.create_line(self._initial[3].coor, self._initial[0].coor, fill="yellow", tag="GRID")
-
-        canvas.create_line(self._rigid[0].coor, self._rigid[1].coor, fill="blue", tag="GRID")
-        canvas.create_line(self._rigid[1].coor, self._rigid[2].coor, fill="blue", tag="GRID")
-        canvas.create_line(self._rigid[2].coor, self._rigid[3].coor, fill="blue", tag="GRID")
-        canvas.create_line(self._rigid[3].coor, self._rigid[0].coor, fill="blue", tag="GRID")
-
-        canvas.create_line(self.boundary[0].coor, self.boundary[1].coor, fill="red", tag="GRID")
-        canvas.create_line(self.boundary[1].coor, self.boundary[2].coor, fill="red", tag="GRID")
-        canvas.create_line(self.boundary[2].coor, self.boundary[3].coor, fill="red", tag="GRID")
-        canvas.create_line(self.boundary[3].coor, self.boundary[0].coor, fill="red", tag="GRID")
+        return min(xs) <= x <= max(xs) and min(ys) <= y <= max(ys)
 
     def get_closest_boundary(self, x, y):
+        """ Get closest boundary Point to given position """
         min_ = -1
         closest = None
         for b in self.boundary:
@@ -93,16 +66,32 @@ class Box():
                 closest = b
         return closest
 
+    def draw(self, canvas, rigid=True):
+        """
+        :param rigid: whether to draw rigid box fitted into current boundaries. Default True.
+        """
+
+        if rigid:
+            canvas.create_line(self._rigid[0].coor, self._rigid[1].coor, fill="blue", tag="GRID")
+            canvas.create_line(self._rigid[1].coor, self._rigid[2].coor, fill="blue", tag="GRID")
+            canvas.create_line(self._rigid[2].coor, self._rigid[3].coor, fill="blue", tag="GRID")
+            canvas.create_line(self._rigid[3].coor, self._rigid[0].coor, fill="blue", tag="GRID")
+
+        canvas.create_line(self.boundary[0].coor, self.boundary[1].coor, fill="red", tag="GRID")
+        canvas.create_line(self.boundary[1].coor, self.boundary[2].coor, fill="red", tag="GRID")
+        canvas.create_line(self.boundary[2].coor, self.boundary[3].coor, fill="red", tag="GRID")
+        canvas.create_line(self.boundary[3].coor, self.boundary[0].coor, fill="red", tag="GRID")
+
     def compute_source_centroid(self):
         w = self.boundary[0].weight + self.boundary[1].weight + self.boundary[2].weight + self.boundary[3].weight
-        self._pc.x = (self.boundary[0].weight * self._initial[0].x
-                      + self.boundary[1].weight * self._initial[1].x
-                      + self.boundary[2].weight * self._initial[2].x
-                      + self.boundary[3].weight * self._initial[3].x) / w
-        self._pc.y = (self.boundary[0].weight * self._initial[0].y
-                      + self.boundary[1].weight * self._initial[1].y
-                      + self.boundary[2].weight * self._initial[2].y
-                      + self.boundary[3].weight * self._initial[3].y) / w
+        self._pc.x = (self.boundary[0].weight * self._rigid[0].ix
+                      + self.boundary[1].weight * self._rigid[1].ix
+                      + self.boundary[2].weight * self._rigid[2].ix
+                      + self.boundary[3].weight * self._rigid[3].ix) / w
+        self._pc.y = (self.boundary[0].weight * self._rigid[0].iy
+                      + self.boundary[1].weight * self._rigid[1].iy
+                      + self.boundary[2].weight * self._rigid[2].iy
+                      + self.boundary[3].weight * self._rigid[3].iy) / w
 
     def compute_target_centroid(self):
         w = self.boundary[0].weight + self.boundary[1].weight + self.boundary[2].weight + self.boundary[3].weight
@@ -116,6 +105,9 @@ class Box():
                       + self.boundary[3].weight * self.boundary[3].y) / w
 
     def fit(self):
+        """
+        Computes the best rotation and translation of the associated rigid box to minimize distance to boundaries
+        """
 
         self.compute_target_centroid()
 
@@ -123,8 +115,8 @@ class Box():
 
         for i in range(0, 4):
 
-            p_roof_x = self._initial[i].x - self._pc.x
-            p_roof_y = self._initial[i].y - self._pc.y
+            p_roof_x = self._rigid[i].ix - self._pc.x
+            p_roof_y = self._rigid[i].iy - self._pc.y
 
             q_roof_x = self.boundary[i].x - self._qc.x
             q_roof_y = self.boundary[i].y - self._qc.y
@@ -155,44 +147,22 @@ class Box():
             self._rigid[i].rotate(rotation).translate(self._qc)
 
     def _homography(self):
-
         """
-        H_A = []
-        H_B = []
-
-        i = 0
-        for s in self._initial:
-            t = self.boundary[i]
-
-            H_A.append([t.x, t.y, 1, 0, 0, 0, -t.x*s.x, -t.y*s.x])
-            H_A.append([0, 0, 0, t.x, t.y, 1, -t.x*s.y, -t.y*s.y])
-
-            H_B.append(t.x)
-            H_B.append(t.y)
-
-            i += 1
-
-        self.H_A = np.array(H_A)
-        self.H_B = np.array(H_B)
-
-        h = np.linalg.solve(self.H_A, self.H_B)
-        self.H = np.array([[h[0], h[1], h[2]],
-                                         [h[3], h[4], h[5]],
-                                         [h[6], h[7],   1]])
-
+        Computes inverse homography.
+        Source is initial position of the box, target is current boundary.
         """
+
         for i in range(0, 4):
-            s = self._initial[i]
+            s = self._rigid[i]
             t = self.boundary[i]
-            self.H_A[2*i][6] = -s.x*t.x
-            self.H_A[2*i][7] = -s.y*t.x
+            self.H_A[2*i][6] = -s.ix*t.x
+            self.H_A[2*i][7] = -s.iy*t.x
 
-            self.H_A[2*i+1][6] = -s.x*t.y
-            self.H_A[2*i+1][7] = -s.y*t.y
+            self.H_A[2*i+1][6] = -s.ix*t.y
+            self.H_A[2*i+1][7] = -s.iy*t.y
 
             self.H_B[2*i] = t.x
             self.H_B[2*i+1] = t.y
-
 
         h = np.linalg.solve(self.H_A, self.H_B)
         self.H = np.linalg.inv(np.array([[h[0], h[1], h[2]],
@@ -200,10 +170,10 @@ class Box():
                                          [h[6], h[7],   1]]))
 
     def project(self, image):
+        """ Projects image to current boundaries """
 
         self._homography()
 
         vert = np.array([(int(round(p.x)), int(round(p.y))) for p in self.boundary])
-
         self._cw.project(self.H.ctypes, image.cmask, image.corig, image.cdata, image.width, image.height, vert.ctypes)
 

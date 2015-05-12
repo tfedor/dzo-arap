@@ -72,7 +72,7 @@ class Application:
             handle_id = self._image.create_handle(e.x, e.y)
             if handle_id != -1:
                 if not self._grid.create_control_point(handle_id, e.x, e.y):
-                    self._image.remove_handle(e.x, e.y)
+                    self._image.remove_handle(handle_id)
                     return False
             else:
                 return False
