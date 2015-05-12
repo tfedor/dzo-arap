@@ -3,11 +3,14 @@ from datetime import datetime
 
 from classes.ImageHelper import ImageHelper
 from classes.Grid import Grid
+from classes.CWrapper import CWrapper
 
 
 class Application:
 
     def __init__(self, path):
+        self.cw = CWrapper()
+
         self._window = tk.Tk()
 
         self._grid = None
@@ -17,14 +20,14 @@ class Application:
         self._canvas = tk.Canvas(self._window, width=self._image.width, height=self._image.height)
         self._canvas.pack()
 
-        self._image.setCanvas(self._canvas)
+        self._image.canvas = self._canvas
 
         self._active_handle = -1
         self._loop = None
         self._t_last = 0
 
     def load_image(self, path):
-        self._image = ImageHelper(path)
+        self._image = ImageHelper(self.cw, path)
 
     def bind(self, event, fn):
         self._canvas.bind(event, fn)

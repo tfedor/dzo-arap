@@ -1,19 +1,80 @@
 #include <cstdio>
+#include <cstring>
 #include <cmath>
 #include <algorithm>
 #include <iostream>
 #include <map>
 #include <bitset>
+#include <queue>
 
 #define R (0)
 #define G (1)
 #define B (2)
 
-int test = 124;
+/**/
 
-extern "C" void testing() {
-    test++;
+using namespace std;
+
+extern "C" void compute_mask(bool * mask, char * orig, int width, int height, int tolerance) {
+
+    int empty_r = orig[0]&255;
+    int empty_g = orig[1]&255;
+    int empty_b = orig[2]&255;
+
+    // bounds
+    int lo_r = empty_r - tolerance;
+    int lo_g = empty_g - tolerance;
+    int lo_b = empty_b - tolerance;
+
+    int up_r = empty_r + tolerance;
+    int up_g = empty_g + tolerance;
+    int up_b = empty_b + tolerance;
+
+    // queue
+    queue<int> queue_x;
+    queue<int> queue_y;
+
+    queue_x.push(0);
+    queue_y.push(0);
+
+    // closed
+    bool ** closed = new bool*[height];
+    for (int i=0; i<height; i++) {
+        closed[i] = new bool[width];
+        memset(closed[i], false, width*sizeof(bool));
+    }
+
+    while (!queue_x.empty()) {
+
+        int x = queue_x.front();
+        int y = queue_y.front();
+
+        queue_x.pop();
+        queue_y.pop();
+
+        if (x < 0 || x >= width || y < 0 || y >= height) { continue; }
+        if (closed[y][x]) {continue;}
+        closed[y][x] = true;
+
+        int px_r = orig[(y*width + x)*3 + R] & 255;
+        int px_g = orig[(y*width + x)*3 + G] & 255;
+        int px_b = orig[(y*width + x)*3 + B] & 255;
+
+        bool foreground = (px_r < lo_r || px_r > up_r
+                        || px_g < lo_g || px_g > up_g
+                        || px_b < lo_b || px_b > up_b);
+        if (!foreground) {
+            mask[y*width+x] = false;
+
+            queue_x.push(x-1); queue_y.push(y);
+            queue_x.push(x+1); queue_y.push(y);
+            queue_x.push(x);   queue_y.push(y-1);
+            queue_x.push(x);   queue_y.push(y+1);
+        }
+    }
 }
+
+/**/
 
 extern "C" void clear(char * data, int width, int height) {
 
@@ -110,8 +171,6 @@ extern "C" void rasterize(int * corners, std::map<int,int> &left, std::map<int,i
 //
 extern "C" void project(double * homography, bool * mask, char * orig, char * data, int width, int height, int * corners) {
 
-    printf("%i\n", test);
-
     std::map<int,int> left;
     std::map<int,int> right;
     rasterize(corners, left, right);
@@ -140,7 +199,12 @@ extern "C" void project(double * homography, bool * mask, char * orig, char * da
             int data_index = (y*width + x)*3;
 
             if (lft >= 0 && rgt < width && top >= 0 && btm < height) {
-                if (!mask[top*width + lft] && !mask[top*width + rgt] && !mask[btm*width + lft] && !mask[btm*width + rgt]) {continue;}
+                if (!mask[(int)round(ry)*width + (int)round(rx)]) {
+                    //data[data_index + R] = 255;
+                    //data[data_index + G] = 0;
+                    //data[data_index + B] = 0;
+                    continue;
+                }
 
                 float coefX = rx-(float)lft;
                 float coefY = ry-(float)top;
