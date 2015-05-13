@@ -11,8 +11,6 @@
 #define G (1)
 #define B (2)
 
-/**/
-
 using namespace std;
 
 extern "C" void compute_mask(bool * mask, char * orig, int width, int height, int tolerance) {
@@ -76,10 +74,16 @@ extern "C" void compute_mask(bool * mask, char * orig, int width, int height, in
 
 /**/
 
-extern "C" void clear(char * data, int width, int height) {
+extern "C" void clear(char * orig, char * data, int width, int height) {
 
-    for (int i=0; i<width*height*3; i++) {
-        data[i] = 255;
+    char r = orig[0]&255;
+    char g = orig[1]&255;
+    char b = orig[2]&255;
+
+    for (int i=0; i<width*height*3; i+=3) {
+        data[i]   = r;
+        data[i+1] = g;
+        data[i+2] = b;
     }
 
 }
@@ -154,7 +158,6 @@ void points(std::map<int, int> &left, std::map<int,int> &right, bool swap, int x
     }
 }
 extern "C" void rasterize(int * corners, std::map<int,int> &left, std::map<int,int> &right) {
-
     /*
     Bresenham's line
     http://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm

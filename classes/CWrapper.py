@@ -10,8 +10,8 @@ class CWrapper:
     def mask(self, mask, orig, width, height, tolerance):
         self._lib.compute_mask(mask.data, orig.data, width, height, tolerance)
 
-    def clear(self, data, width, height):
-        self._lib.clear(data.data_as(c.POINTER(c.c_char)), width, height)
+    def clear(self, orig, data, width, height):
+        self._lib.clear(orig.data, data.data_as(c.POINTER(c.c_char)), width, height)
 
     def project(self, homography, mask, orig, data, width, height, corners):
 

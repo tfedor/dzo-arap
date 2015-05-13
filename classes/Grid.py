@@ -45,6 +45,10 @@ class Grid:
         for y in range(box_y, btm, self.BOX_SIZE):
             for x in range(box_x, rgt, self.BOX_SIZE):
                 if -1 != self._border(immask[y:y+self.BOX_SIZE:1, x:x+self.BOX_SIZE:1]):
+                    if x < 0 or x + self.BOX_SIZE > self._image.width \
+                        or y < 0 or y + self.BOX_SIZE > self._image.height:
+                        continue
+
                     self._boxes.append(
                         Box(
                             self.cw,
@@ -202,7 +206,7 @@ class Grid:
         Image data are properly updated
         """
 
-        self.cw.clear(self._image.cdata, self._image.width, self._image.height)
+        self.cw.clear(self._image.corig, self._image.cdata, self._image.width, self._image.height)
 
         for box in self._boxes:
             box.project(self._image)
