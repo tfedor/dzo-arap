@@ -1,8 +1,9 @@
-Aplikácia bola vývjaná pre Python 3.4 64bit.
+This was a semestral project for a Digital Image Processing class at CTU, in summer semester 2014/2015.
 
-Knižnice potrebné na spustenie su numpy, Pillow a TkInter a je potrebné skompilovať kód v C ako libarap.dll.
-K implementácii je dodávaný veľmi minimálny makefile.
+As-rigid-as-possible real-time image deformation was implemented in Python 3.4 64 with computationally extensive parts written in C. Python libraries used were: numpy, Pillow and TkInter.
 
-Vstup do programu je script main.py, v ktorom sa nastavuje cesta k obrázku. Po spustení tohto skriptu by sa mala spustiť GUI aplikácia.
+For compilation of the library there's a very very minimal makefile added. Application wasn't tested on anything else but Windows 7 64bit.
 
-Pridanie nového kontrolného bodu je ľavé tlačítko myši, odstránenie pravé tlačítko myši.
+For starting application use main.py, in which there's a hardcoded path to image.
+
+For adding and moving control point use left mouse button, for removing use right mouse button.
