@@ -1,0 +1,16 @@
+\begin{thebibliography}{1}
+
+\bibitem{Schaefer:2006:IDU:1179352.1141920}
+Scott Schaefer, Travis McPhail, and Joe Warren.
+\newblock Image deformation using moving least squares.
+\newblock In {\em ACM SIGGRAPH 2006 Papers}, SIGGRAPH '06, pages 533--540, New
+  York, NY, USA, 2006. ACM.
+
+\bibitem{Sykora09-NPAR}
+Daniel S\'{y}kora, John Dingliana, and Steven Collins.
+\newblock As-rigid-as-possible image registration for hand-drawn cartoon
+  animations.
+\newblock In {\em Proceedings of International Symposium on Non-photorealistic
+  Animation and Rendering}, pages 25--33, 2009.
+
+\end{thebibliography}
