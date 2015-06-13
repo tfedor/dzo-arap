@@ -49,13 +49,13 @@ class Application:
         delta = dt.timestamp()-self._t_last
         if 0 < delta > 0.03:  # 0.03 - 30 FPS
 
-            dt = datetime.now()
-            t1 = dt.timestamp()
+            # dt = datetime.now()
+            # t1 = dt.timestamp()
 
             self._grid.project()
 
-            dt = datetime.now()
-            print(dt.timestamp()-t1)
+            #dt = datetime.now()
+            # print(dt.timestamp()-t1)
 
             self._image.draw()
             self._grid.draw()

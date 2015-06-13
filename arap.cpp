@@ -208,9 +208,9 @@ extern "C" void project(double * homography, bool * mask, char * orig, char * da
 
             if (lft >= 0 && rgt < width && top >= 0 && btm < height) {
                 if (!mask[(int)round(ry)*width + (int)round(rx)]) {
-                    //data[data_index + R] = 255;
-                    //data[data_index + G] = 0;
-                    //data[data_index + B] = 0;
+                    // data[data_index + R] = 255;
+                    // data[data_index + G] = 0;
+                    // data[data_index + B] = 0;
                     continue;
                 }
 
@@ -233,9 +233,9 @@ extern "C" void project(double * homography, bool * mask, char * orig, char * da
                     data[data_index + c] = ((int)clr)&255;
                 }
             } else {
-                data[data_index + R] = 255;
-                data[data_index + G] = 0;
-                data[data_index + B] = 255;
+                //data[data_index + R] = 255;
+                //data[data_index + G] = 0;
+                //data[data_index + B] = 255;
             }
         }
     }

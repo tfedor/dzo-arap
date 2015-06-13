@@ -18,7 +18,7 @@ class Grid:
 
     def __init__(self, cw, image):
 
-        self.visible = True
+        self.visible = False
 
         self.cw = cw
 
@@ -46,7 +46,7 @@ class Grid:
             for x in range(box_x, rgt, self.BOX_SIZE):
                 if -1 != self._border(immask[y:y+self.BOX_SIZE:1, x:x+self.BOX_SIZE:1]):
                     if x < 0 or x + self.BOX_SIZE > self._image.width \
-                        or y < 0 or y + self.BOX_SIZE > self._image.height:
+                            or y < 0 or y + self.BOX_SIZE > self._image.height:
                         continue
 
                     self._boxes.append(
@@ -182,7 +182,7 @@ class Grid:
 
         if self.visible:
             for box in self._boxes:
-                box.draw(self._image.canvas)
+                box.draw(self._image.canvas, True)
 
     def regularize(self):
         """
